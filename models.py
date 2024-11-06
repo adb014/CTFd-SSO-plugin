@@ -27,6 +27,18 @@ class OAuthClients(db.Model):
             client_kwargs={'scope': 'profile roles'}
         )
 
+    def update(self, oauth):
+        oauth._registry.pop(self.name)
+        oauth.register(
+            name=self.id,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+            access_token_url=self.access_token_url,
+            authorize_url=self.authorize_url,
+            api_base_url=self.api_base_url,
+            client_kwargs={'scope': 'profile roles'}
+        )
+
     def disconnect(self, oauth):
         oauth._registry[self.id] = None
         oauth._clients[self.id] = None

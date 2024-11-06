@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+	<div class="container">
+		<h1>Update OAuth2 client</h1>
+	</div>
+</div>
+<div class="container">
+	<div class="row">
+		<div class="col-md-6 offset-md-3">
+			{% include "components/errors.html" %}
+
+			<form method="post" accept-charset="utf-8" autocomplete="off">
+				<div class="form-group">
+					<b>{{ form.name.label }}</b>
+					{{ form.name(class="form-control", value=form.name.data, disabled=True) }}
+				</div>
+				<div class="form-group">
+					<b>{{ form.client_id.label }}</b>
+					{{ form.client_id(class="form-control", value=form.client_id.data or "") }}
+				</div>
+				<div class="form-group">
+					<b>{{ form.client_secret.label }}</b>
+					{{ form.client_secret(class="form-control", value=form.client_secret.data or "") }}
+				</div>
+				<div class="form-group">
+					<b>{{ form.access_token_url.label }}</b>
+					{{ form.access_token_url(class="form-control", value=form.access_token_url.data or "") }}
+				</div>
+				<div class="form-group">
+					<b>{{ form.authorize_url.label }}</b>
+					{{ form.authorize_url(class="form-control", value=form.authorize_url.data or "") }}
+				</div>
+				<div class="form-group">
+					<b>{{ form.api_base_url.label }}</b>
+					{{ form.api_base_url(class="form-control", value=form.api_base_url.data or "") }}
+				</div>
+				<div class="row">
+					<div class="col">
+						{{ form.submit(class="btn btn-md btn-primary btn-outlined") }}
+					</div>
+				</div>
+				{{ form.nonce() }}
+			</form>
+		</div>
+	</div>
+</div>
+{% endblock %}

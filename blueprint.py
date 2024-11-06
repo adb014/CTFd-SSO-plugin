@@ -46,7 +46,40 @@ def load_bp(oauth):
                 db.session.delete(client)
                 db.session.commit()
                 db.session.flush()
-        return redirect(url_for('sso.sso_list'))
+            return redirect(url_for('sso.sso_list'))
+        elif request.method == "POST":
+            client = OAuthClients(
+                name=name,
+                client_id=client_id,
+                client_secret=client_secret,
+                access_token_url=access_token_url,
+                authorize_url=authorize_url,
+                api_base_url=api_base_url
+            )
+            client.name = request.form["name"]
+            client.client_id = request.form["client_id"]
+            client.client_secret = request.form["client_secret"]
+            client.access_token_url = request.form["access_token_url"]
+            client.authorize_url = request.form["authorize_url"]
+            client.api_base_url = request.form["api_base_url"]
+            db.session.commit()
+            db.session.flush()
+
+            client.update(oauth)
+
+            return redirect(url_for('sso.sso_list'))
+        else:
+          client = OAuthClients.query.filter_by(id=client_id).first()
+          form = OAuthForm()
+          form.name.data = client.name
+          form.client_id.data = client.client_id
+          form.client_secret.data = client.client_secret
+          form.access_token_url.data = client.access_token_url
+          form.authorize_url.data = client.authorize_url
+          form.api_base_url.data = client.api_base_url
+          form.submit.label.text = "Update"
+
+          return render_template('update.html', form=form)
 
 
     @plugin_bp.route('/admin/sso/create', methods = ['GET', 'POST'])
