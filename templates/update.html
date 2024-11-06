@@ -24,6 +24,7 @@
 					<b>{{ form.client_secret.label }}</b>
 					{{ form.client_secret(class="form-control", value=form.client_secret.data or "") }}
 				</div>
+				<hr color="#999">
 				<div class="form-group">
 					<b>{{ form.access_token_url.label }}</b>
 					{{ form.access_token_url(class="form-control", value=form.access_token_url.data or "") }}
@@ -36,6 +37,12 @@
 					<b>{{ form.api_base_url.label }}</b>
 					{{ form.api_base_url(class="form-control", value=form.api_base_url.data or "") }}
 				</div>
+				<hr class="hr-text" data-content="Or">
+				<div class="form-group">
+					<b>{{ form.server_metadata_url.label }}</b>
+					{{ form.server_metadata_url(class="form-control", value=server_metadata_url) }}
+				</div>
+        <hr color="#999">
 				<div class="form-group">
 				  <b>{{ form.color.label }}</b>
 				  <input type="color" id)"color" name="color" value="{{ form.color.data }}">

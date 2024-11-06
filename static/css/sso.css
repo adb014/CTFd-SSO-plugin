@@ -1,0 +1,22 @@
+hr.hr-text {
+  position: relative;
+    border: none;
+    height: 1px;
+    background-color: #999;
+}
+
+hr.hr-text::before {
+    content: attr(data-content);
+    display: inline-block;
+    background: #fff;
+    color: #999;
+    font-weight: bold;
+    font-size: 0.85rem;
+    border-radius: 30rem;
+    padding: 0.2rem 2rem;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+

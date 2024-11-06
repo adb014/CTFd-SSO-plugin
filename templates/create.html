@@ -1,5 +1,9 @@
 {% extends "admin/base.html" %}
 
+{% block stylesheets %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('sso.static', filename='css/sso.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="jumbotron">
 	<div class="container">
@@ -24,6 +28,7 @@
 					<b>{{ form.client_secret.label }}</b>
 					{{ form.client_secret(class="form-control", value=client_secret) }}
 				</div>
+				<hr color="#999">
 				<div class="form-group">
 					<b>{{ form.access_token_url.label }}</b>
 					{{ form.access_token_url(class="form-control", value=access_token_url) }}
@@ -36,6 +41,12 @@
 					<b>{{ form.api_base_url.label }}</b>
 					{{ form.api_base_url(class="form-control", value=api_base_url) }}
 				</div>
+				<hr class="hr-text" data-content="Or">
+				<div class="form-group">
+					<b>{{ form.server_metadata_url.label }}</b>
+					{{ form.server_metadata_url(class="form-control", value=server_metadata_url) }}
+				</div>
+        <hr color="#999">
 				<div class="form-group">
 				  <b>{{ form.color.label }}</b>
 				  <input type="color" id="color" name="color" value="#7f7f7f">

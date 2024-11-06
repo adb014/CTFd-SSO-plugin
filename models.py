@@ -13,6 +13,7 @@ class OAuthClients(db.Model):
     access_token_url = db.Column(db.Text)
     authorize_url = db.Column(db.Text)
     api_base_url = db.Column(db.Text)
+    server_metadata_url = db.Column(db.Text)
 
     # In a later update you will be able to customize the login button 
     color = db.Column(db.Text)
@@ -23,18 +24,29 @@ class OAuthClients(db.Model):
 
     def register(self, oauth):
         if process_boolean_str(get_app_config("OAUTH_ALWAYS_POSSIBLE")):
-          scope = 'profile roles'
+          scope = 'profile openid  roles'
         else:
-          scope = 'profile'
-        oauth.register(
-            name=self.id,
-            client_id=self.client_id,
-            client_secret=self.client_secret,
-            access_token_url=self.access_token_url,
-            authorize_url=self.authorize_url,
-            api_base_url=self.api_base_url,
-            client_kwargs={'scope': scope}
-        )
+          scope = 'profile openid email'
+
+        if self.server_metadata_url:
+            oauth.register(
+                name=self.id,
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                server_metadata_url=self.server_metadata_url,
+                client_kwargs={'scope': scope}
+            )
+        else:
+            oauth.register(
+                name=self.id,
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                access_token_url=self.access_token_url,
+                authorize_url=self.authorize_url,
+                api_base_url=self.api_base_url,
+                server_metadata_url=f'{self.api_base_url}/.well-known/openid-configuration',
+                client_kwargs={'scope': scope}
+            )
 
     def disconnect(self, oauth):
         oauth._registry[self.id] = None
