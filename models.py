@@ -1,4 +1,6 @@
+from CTFd.config import process_boolean_str
 from CTFd.models import db
+from CTFd.utils import get_app_config
 
 
 class OAuthClients(db.Model):
@@ -20,6 +22,10 @@ class OAuthClients(db.Model):
     enabled = db.Column(db.Boolean, default=False)
 
     def register(self, oauth):
+        if process_boolean_str(get_app_config("OAUTH_ALWAYS_POSSIBLE")):
+          scope = 'profile roles'
+        else:
+          scope = 'profile'
         oauth.register(
             name=self.id,
             client_id=self.client_id,
@@ -27,7 +33,7 @@ class OAuthClients(db.Model):
             access_token_url=self.access_token_url,
             authorize_url=self.authorize_url,
             api_base_url=self.api_base_url,
-            client_kwargs={'scope': 'profile roles'}
+            client_kwargs={'scope': scope}
         )
 
     def disconnect(self, oauth):
