@@ -131,7 +131,7 @@ def load_bp(oauth):
         client = oauth.create_client(client_id)
         token = client.authorize_access_token()
 
-        if process_boolean_str(get_app_config("OAUTH_ALWAYS_POSSIBLE")):
+        if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
             api_data = client.get('').json()
             user_name = api_data["preferred_username"]
             user_email = api_data["email"]
@@ -148,7 +148,7 @@ def load_bp(oauth):
         user = Users.query.filter_by(email=user_email).first()
         if user is None:
             # Check if we are allowing registration before creating users
-            if registration_visible() or process_boolean_str(get_app_config("OAUTH_ALWAYS_POSSIBLE")):
+            if registration_visible():
                 user = Users(
                     name=user_name,
                     email=user_email,

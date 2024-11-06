@@ -23,7 +23,7 @@ class OAuthClients(db.Model):
     enabled = db.Column(db.Boolean, default=False)
 
     def register(self, oauth):
-        if process_boolean_str(get_app_config("OAUTH_ALWAYS_POSSIBLE")):
+        if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
           scope = 'profile openid  roles'
         else:
           scope = 'profile openid email'
