@@ -6,6 +6,7 @@ import re
 
 from authlib.integrations.flask_client import OAuth
 
+from CTFd.config import process_boolean_str
 from CTFd.plugins import override_template
 from CTFd.utils import get_app_config
 
@@ -36,14 +37,29 @@ def update_login_template(app):
         pos = match.start()
 
         PLUGIN_PATH = os.path.dirname(__file__)
-        injecting_file_path = os.path.join(
-            PLUGIN_PATH, 'templates/login_oauth.html')
+        if process_boolean_str(get_app_config("OAUTH_NO_LOCAL_USERS")):
+            injecting_file_path = os.path.join(
+                PLUGIN_PATH, 'templates/login_oauth_no_local.html')
+        else:
+             injecting_file_path = os.path.join(
+                PLUGIN_PATH, 'templates/login_oauth.html')
         with open(injecting_file_path, 'r') as f:
             injecting = f.read()
 
-        new_template = original[:pos] + injecting + original[pos:]
+        if process_boolean_str(get_app_config("OAUTH_NO_LOCAL_USERS")):
+            match2 = re.search("{%\s*endwith\s*%}", original)
+            pos2 = match2.end()
+            new_template = original[:pos] + injecting + original[pos2:]
+        else:
+            new_template = original[:pos] + injecting + original[pos:]
         override_template('login.html', new_template)
 
+def numactive(clients):
+  n = 0
+  for client in clients:
+      if client.enabled:
+          n += 1
+  return n
 
 def load(app):
     # Create database tables
@@ -59,9 +75,13 @@ def load(app):
     app.jinja_env.globals.update(oauth_clients=oauth_clients)
 
     # Update the login template
-    if get_app_config("OAUTH_CREATE_BUTTONS") == True:
+    if process_boolean_str(get_app_config("OAUTH_CREATE_BUTTONS")) or \
+       process_boolean_str(get_app_config("OAUTH_NO_LOCAL_USERS")):
         update_login_template(app)
 
     # Register the blueprint containing the routes
     bp = load_bp(oauth)
     app.register_blueprint(bp)
+
+    # Add a function to Jinja2 to count our active Oauth providers
+    app.jinja_env.globals.update(numactive=numactive)

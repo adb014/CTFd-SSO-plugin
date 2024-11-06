@@ -39,6 +39,7 @@
 						</td>
 						<th class="sort-col text-center"><b>ID</b></th>
 						<th class="sort-col"><b>Name</b></th>
+						<th class="sort-col"><b>Enabled</b></th>
 					</tr>
 					</thead>
 					<tbody>
@@ -51,6 +52,12 @@
 							</td>
 							<td class="text-center">{{ client.id }}</td>
 							<td><a href="{{ url_for('sso.sso_details', client_id=client.id) }}">{{ client.name }}</a></td>
+							<td>
+								{% set badge_state = 'badge-success' if client.enabled else 'badge-danger' %}
+								<span class="badge {{ badge_state }}">
+								  {% if client.enabled %}enabled{% else %}disabled{% endif %}
+								</span>
+							</td>
 						</tr>
 					{% endfor %}
 					</tbody>

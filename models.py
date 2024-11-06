@@ -16,19 +16,10 @@ class OAuthClients(db.Model):
     color = db.Column(db.Text)
     icon = db.Column(db.Text)
 
-    def register(self, oauth):
-        oauth.register(
-            name=self.id,
-            client_id=self.client_id,
-            client_secret=self.client_secret,
-            access_token_url=self.access_token_url,
-            authorize_url=self.authorize_url,
-            api_base_url=self.api_base_url,
-            client_kwargs={'scope': 'profile roles'}
-        )
+    # Allow the OAuth provider to be individually enabled/disabled
+    enabled = db.Column(db.Boolean, default=False)
 
-    def update(self, oauth):
-        oauth._registry.pop(self.name)
+    def register(self, oauth):
         oauth.register(
             name=self.id,
             client_id=self.client_id,

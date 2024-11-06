@@ -1,5 +1,5 @@
 from flask import Blueprint, redirect, render_template, request, url_for
-from wtforms import StringField
+from wtforms import StringField, BooleanField
 from wtforms.validators import InputRequired
 
 from CTFd.cache import clear_user_session
@@ -25,6 +25,7 @@ class OAuthForm(BaseForm):
     access_token_url = StringField("Access token url", validators=[InputRequired()])
     authorize_url = StringField("Authorization url", validators=[InputRequired()])
     api_base_url = StringField("User info url", validators=[InputRequired()])
+    enabled = BooleanField("Enabled")
     submit = SubmitField("Add")
 
 
@@ -36,7 +37,7 @@ def load_bp(oauth):
         return render_template('list.html')
 
 
-    @plugin_bp.route('/admin/sso/client/<int:client_id>', methods = ['GET', 'DELETE'])
+    @plugin_bp.route('/admin/sso/client/<int:client_id>', methods = ['GET', 'POST', 'DELETE'])
     @admins_only
     def sso_details(client_id):
         if request.method == 'DELETE':
@@ -48,24 +49,16 @@ def load_bp(oauth):
                 db.session.flush()
             return redirect(url_for('sso.sso_list'))
         elif request.method == "POST":
-            client = OAuthClients(
-                name=name,
-                client_id=client_id,
-                client_secret=client_secret,
-                access_token_url=access_token_url,
-                authorize_url=authorize_url,
-                api_base_url=api_base_url
-            )
-            client.name = request.form["name"]
+            client = OAuthClients.query.filter_by(id=client_id).first()
             client.client_id = request.form["client_id"]
             client.client_secret = request.form["client_secret"]
             client.access_token_url = request.form["access_token_url"]
             client.authorize_url = request.form["authorize_url"]
             client.api_base_url = request.form["api_base_url"]
+            client.enabled = ("enabled" in request.form and request.form["enabled"] == "y")
             db.session.commit()
             db.session.flush()
-
-            client.update(oauth)
+            client.register(oauth)
 
             return redirect(url_for('sso.sso_list'))
         else:
@@ -77,6 +70,7 @@ def load_bp(oauth):
           form.access_token_url.data = client.access_token_url
           form.authorize_url.data = client.authorize_url
           form.api_base_url.data = client.api_base_url
+          form.enabled.data = client.enabled
           form.submit.label.text = "Update"
 
           return render_template('update.html', form=form)
@@ -92,6 +86,8 @@ def load_bp(oauth):
             access_token_url = request.form["access_token_url"]
             authorize_url = request.form["authorize_url"]
             api_base_url = request.form["api_base_url"]
+            enabled = ("enabled" in request.form and request.form["enabled"] == "y")
+
 
             client = OAuthClients(
                 name=name,
@@ -99,7 +95,8 @@ def load_bp(oauth):
                 client_secret=client_secret,
                 access_token_url=access_token_url,
                 authorize_url=authorize_url,
-                api_base_url=api_base_url
+                api_base_url=api_base_url,
+                enabled=enabled
             )
             db.session.add(client)
             db.session.commit()

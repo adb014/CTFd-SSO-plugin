@@ -1,0 +1,15 @@
+{% if numactive(oauth_clients()) == 1 %}
+<!-- Only one OAuth provider active and no local users. Auto redirect -->
+<script type="text/javascript">
+    window.location.href = "{{ url_for('sso.sso_oauth', client_id=oauth_clients()[0].id) }}";
+</script>
+{% else %}
+{% for client in oauth_clients() %}
+  {% if client.enabled %}
+<a class="btn btn-secondary btn-lg btn-block" href="{{ url_for('sso.sso_oauth', client_id=client.id) }}">
+    Log in with {{ client.name }}
+</a>
+  {% endif %}
+<hr>
+{% endfor %}
+{% endif %}

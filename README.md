@@ -13,6 +13,7 @@ Works perfectly with a large variety of identity management solutions, like KeyC
 3. Edit the `[extra]` section of `CTFd/config.ini` adding these two values:
    - `OAUTH_ALWAYS_POSSIBLE`: set `True` if you want to allow registration via OAuth even if normal registration is turned off. Default is `False`.
    - `OAUTH_CREATE_BUTTONS`: set `True` if you want to automatically add the OAuth login buttons in the login page. Default is `False`.
+   - `OAUTH_NO_LOCAL_USERS`: set `True` if you only want to allow OAuth logins
 4. Start or restart CTFd.
 5. In the `Admin Panel` go to `Plugins`>`ctfd-sso`. There you can view and delete existing clients, or add a new one by pressing plus symbol.
 6. Insert a client name (it will be shown on the button) and the other information according to the identity provider. Then press `Add`.
