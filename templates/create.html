@@ -37,6 +37,10 @@
 					{{ form.api_base_url(class="form-control", value=api_base_url) }}
 				</div>
 				<div class="form-group">
+				  <b>{{ form.color.label }}</b>
+				  <input type="color" id="color" name="color" value="#7f7f7f">
+				</div>
+				<div class="form-group">
 				  <b>{{ form.enabled.label }}</b>
 				  {{ form.enabled }}
 				</div>

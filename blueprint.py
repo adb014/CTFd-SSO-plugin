@@ -25,6 +25,7 @@ class OAuthForm(BaseForm):
     access_token_url = StringField("Access token url", validators=[InputRequired()])
     authorize_url = StringField("Authorization url", validators=[InputRequired()])
     api_base_url = StringField("User info url", validators=[InputRequired()])
+    color = StringField("Button Color", validators=[InputRequired()])
     enabled = BooleanField("Enabled")
     submit = SubmitField("Add")
 
@@ -55,6 +56,7 @@ def load_bp(oauth):
             client.access_token_url = request.form["access_token_url"]
             client.authorize_url = request.form["authorize_url"]
             client.api_base_url = request.form["api_base_url"]
+            client.color = request.form["color"]
             client.enabled = ("enabled" in request.form and request.form["enabled"] == "y")
             db.session.commit()
             db.session.flush()
@@ -70,6 +72,7 @@ def load_bp(oauth):
           form.access_token_url.data = client.access_token_url
           form.authorize_url.data = client.authorize_url
           form.api_base_url.data = client.api_base_url
+          form.color.data = client.color
           form.enabled.data = client.enabled
           form.submit.label.text = "Update"
 
@@ -86,8 +89,8 @@ def load_bp(oauth):
             access_token_url = request.form["access_token_url"]
             authorize_url = request.form["authorize_url"]
             api_base_url = request.form["api_base_url"]
+            color = request.form["color"]
             enabled = ("enabled" in request.form and request.form["enabled"] == "y")
-
 
             client = OAuthClients(
                 name=name,
@@ -96,6 +99,7 @@ def load_bp(oauth):
                 access_token_url=access_token_url,
                 authorize_url=authorize_url,
                 api_base_url=api_base_url,
+                color=color,
                 enabled=enabled
             )
             db.session.add(client)

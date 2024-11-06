@@ -1,6 +1,7 @@
 {% for client in oauth_clients() %}
   {% if client.enabled %}
-<a class="btn btn-secondary btn-lg btn-block" href="{{ url_for('sso.sso_oauth', client_id=client.id) }}">
+<style>.btn-{{ client.id }} { background-color: {{ client.color }}; color: #ffffff }</style>
+<a class="btn btn-{{ client.id }} btn-lg btn-block" color="{{client.color }}" href="{{ url_for('sso.sso_oauth', client_id=client.id) }}">
     Log in with {{ client.name }}
 </a>
   {%endif %}
