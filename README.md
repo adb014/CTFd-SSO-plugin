@@ -14,6 +14,7 @@ Works perfectly with a large variety of identity management solutions, like KeyC
    - `OAUTH_HAS_ROLES`: set `True` if you want to allow automatic registration of administrators via OAuth. This relies on the API Endpoint returning the `roles` key. Default is `False`.
    - `OAUTH_CREATE_BUTTONS`: set `True` if you want to automatically add the OAuth login buttons in the login page. Default is `False`.
    - `OAUTH_NO_LOCAL_USERS`: set `True` if you only want to allow OAuth logins
+   - `OAUTH_SSO_LOGOUT`: set `True` if you wish for a logout from CTFd to force the logout from the OAuth provider. This requires that the provider supplies a `end_session_endpoint` in its server metadata.
 4. Start or restart CTFd.
 5. In the `Admin Panel` go to `Plugins`>`ctfd-sso`. There you can view and delete existing clients, or add a new one by pressing plus symbol.
 6. Insert a client name (it will be shown on the button) and the other information according to the identity provider. Then press `Add`.

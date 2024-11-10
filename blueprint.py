@@ -123,7 +123,8 @@ def load_bp(oauth):
     @plugin_bp.route("/sso/login/<int:client_id>", methods = ['GET'])
     def sso_oauth(client_id):
         client = oauth.create_client(client_id)
-        redirect_uri=url_for('sso.sso_redirect', client_id=client_id, _external=True)
+        # FIXME: X-FORWARDED-PROTO doesn't seem to be respected by url_for
+        redirect_uri=url_for('sso.sso_redirect', client_id=client_id, _external=True, _scheme='https')
         return client.authorize_redirect(redirect_uri)
 
 
@@ -214,13 +215,10 @@ def load_bp(oauth):
         id_token = request.cookies.get("id_token")
         end_session_endpoint = request.cookies.get("end_session_endpoint")
         redirect_url = url_for("views.static_html")
-        if not end_session_endpoint or not token:
+        if not end_session_endpoint or not id_token:
             return redirect(redirect_url)
         else:
-            end_session_url = add_params_to_uri(end_session_endpoint, (
-                ('id_token_hint', id_token),
-                ('post_logout_redirect_uri', redirect_url),
-            ))
-            return redirect(end_session_url)
+            return redirect(end_session_endpoint + "?id_token_hint=" + id_token +
+                "&post_logout_redirect_uri=" + redirect_url)
 
     return plugin_bp
