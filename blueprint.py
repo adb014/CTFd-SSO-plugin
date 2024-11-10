@@ -131,16 +131,26 @@ def load_bp(oauth):
     def sso_redirect(client_id):
         client = oauth.create_client(client_id)
         token = client.authorize_access_token()
-        api_data = client.get('').json()
+        try:
+            api_data = client.get('').json()
+        except:
+            api_data = []
+        try:
+            userinfo = client.parse_id_token(token)
+        except:
+            userinfo = []
 
         if "email" in api_data:
             user_email = api_data["email"]
-        else:
-            userinfo = client.parse_id_token(token)
+        elif "email" in userinfo :
             user_email = userinfo["email"]
+        else:
+            user_email = "unknown@example.com"
 
         if "preferred_username" in api_data:
             user_name = api_data["preferred_username"]
+        if "preferred_username" in userinfo:
+            user_name = userinfo["preferred_username"]
         elif user_email.find("@") == -1:
             user_name = user_email
         else:
@@ -183,23 +193,26 @@ def load_bp(oauth):
 
         login_user(user)
 
-        response = make_reponse(redirect(url_for("challenges.listing")))
+        response = redirect(url_for("challenges.listing"))
         if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
             metadata = client.load_server_metadata()
 
             # Save id_token and end_session_endpoint as cookie to allow logout
             # Use http_only and same_site to secure the cookie. We might be
             # behind a reverse proxy so don't set secure
-            response.set_cookie("id_token", token["id_token"], httponly = True, samesite="strict", secure = True)
-            response.set_cookie("end_session_endpoint", metadata["end_session_endpoint"], httponly = True, samesite = "strict", secure = True)
+            if "id_token" in token:
+                response.set_cookie("id_token", token["id_token"], httponly = True, samesite="strict", secure = True)
+            if "end_session_endpoint" in metadata:
+                response.set_cookie("end_session_endpoint", metadata["end_session_endpoint"], httponly = True, samesite = "strict", secure = True)
         return response
 
+    @plugin_bp.route("/sso/logout", methods = ['GET'])
     def sso_logout():
         if current_user.authed():
             logout_user()
 
-        id_token = request.get_cookie("id_token")
-        end_session_endpoint = request.get_cookie("end_session_endpoint")
+        id_token = request.cookies.get("id_token")
+        end_session_endpoint = request.cookies.get("end_session_endpoint")
         redirect_url = url_for("views.static_html")
         if not end_session_endpoint or not token:
             return redirect(redirect_url)

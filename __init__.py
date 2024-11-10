@@ -88,4 +88,4 @@ def load(app):
 
     if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
         # Overwrite existing logout function to treat SSO logout
-        app.view_functions["auth.logout"] = bp.sso_logout
+        app.view_functions["auth.logout"] = app.view_functions["sso.sso_logout"]
