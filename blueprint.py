@@ -8,11 +8,12 @@ from CTFd.forms import BaseForm
 from CTFd.forms.fields import SubmitField
 from CTFd.models import Users, db
 from CTFd.utils import get_app_config
+from CTFd.utils import user as current_user
 from CTFd.utils.config.visibility import registration_visible
 from CTFd.utils.decorators import admins_only
 from CTFd.utils.helpers import error_for
 from CTFd.utils.logging import log
-from CTFd.utils.security.auth import login_user
+from CTFd.utils.security.auth import login_user, logout_user
 
 from .models import OAuthClients
 
@@ -130,22 +131,27 @@ def load_bp(oauth):
     def sso_redirect(client_id):
         client = oauth.create_client(client_id)
         token = client.authorize_access_token()
+        api_data = client.get('').json()
 
-        if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
-            api_data = client.get('').json()
-            user_name = api_data["preferred_username"]
+        if "email" in api_data:
             user_email = api_data["email"]
-            user_roles = api_data.get("roles")
         else:
             userinfo = client.parse_id_token(token)
             user_email = userinfo["email"]
-            if user_email.find("@") == -1:
-                user_name = user_email
-            else:
-                user_name = user_email[:user_email.find("@")]
+
+        if "preferred_username" in api_data:
+            user_name = api_data["preferred_username"]
+        elif user_email.find("@") == -1:
+            user_name = user_email
+        else:
+            user_name = user_email[:user_email.find("@")]
+
+        if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
+            user_roles = api_data.get("roles")
+        else:
             user_roles = None;
 
-        user = Users.query.filter_by(email=user_email).first()
+        user = Users.query.filter_by(name=user_name).first()
         if user is None:
             # Check if we are allowing registration before creating users
             if registration_visible():
@@ -177,6 +183,31 @@ def load_bp(oauth):
 
         login_user(user)
 
-        return redirect(url_for("challenges.listing"))
+        response = make_reponse(redirect(url_for("challenges.listing")))
+        if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
+            metadata = client.load_server_metadata()
+
+            # Save id_token and end_session_endpoint as cookie to allow logout
+            # Use http_only and same_site to secure the cookie. We might be
+            # behind a reverse proxy so don't set secure
+            response.set_cookie("id_token", token["id_token"], httponly = True, samesite="strict", secure = True)
+            response.set_cookie("end_session_endpoint", metadata["end_session_endpoint"], httponly = True, samesite = "strict", secure = True)
+        return response
+
+    def sso_logout():
+        if current_user.authed():
+            logout_user()
+
+        id_token = request.get_cookie("id_token")
+        end_session_endpoint = request.get_cookie("end_session_endpoint")
+        redirect_url = url_for("views.static_html")
+        if not end_session_endpoint or not token:
+            return redirect(redirect_url)
+        else:
+            end_session_url = add_params_to_uri(end_session_endpoint, (
+                ('id_token_hint', id_token),
+                ('post_logout_redirect_uri', redirect_url),
+            ))
+            return redirect(end_session_url)
 
     return plugin_bp

@@ -85,3 +85,7 @@ def load(app):
 
     # Add a function to Jinja2 to count our active Oauth providers
     app.jinja_env.globals.update(numactive=numactive)
+
+    if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
+        # Overwrite existing logout function to treat SSO logout
+        app.view_functions["auth.logout"] = bp.sso_logout
