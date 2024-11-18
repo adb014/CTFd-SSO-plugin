@@ -17,6 +17,11 @@ from CTFd.utils.security.auth import login_user, logout_user
 
 from .models import OAuthClients
 
+import json
+import sys
+import time
+import urllib
+
 plugin_bp = Blueprint('sso', __name__, template_folder='templates', static_folder='static', static_url_path='/static/sso')
 
 
@@ -32,8 +37,73 @@ class OAuthForm(BaseForm):
     enabled = BooleanField("Enabled")
     submit = SubmitField("Add")
 
-
 def load_bp(oauth):
+
+    @plugin_bp.after_app_request
+    def refresh_token(response):
+        # We are not using introspection to validate the tokens
+        # but we still want to refresh the token, so that the
+        # user isn't logged out of the OAuth provider, even though
+        # CTFd is used. This is also used to impose the OAuth
+        # providers idle time policy
+
+        # If on login page don't refresh the token. Avoid infinite loop
+        if request.path.endswith("/login"):
+            return response
+
+        token = request.cookies.get("token")
+        if not token:
+            return response
+
+        token = json.loads(token.replace("'", '"'))
+        refresh_token = token["refresh_token"]
+        if not refresh_token:
+            return response
+
+        # If expiry of the access_token is longer then 60 seconds
+        # away, don't refresh. The refresh_token will expire
+        # afterwards in any case
+        if time.time() < token["expires_at"] - 60:
+            return response
+
+        # As I've stored the token in a cookie, I can't use
+        # the on_update_token signal of authlib. Create and
+        # parse the request myself
+        client_id = request.cookies.get("sso_client_id")
+        if client_id:
+            client_id = int(client_id)
+        else:
+            client_id = 1
+        client = oauth.create_client(client_id)
+        body = urllib.parse.urlencode(
+            {
+                "refresh_token": refresh_token,
+                "client_id": client.client_id,
+                "client_secret": client.client_secret,
+                "grant_type": "refresh_token",
+                "scope": token["scope"],
+            }
+        )
+        try:
+            data = client.request("POST", client.access_token_url, token, body=body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"})
+
+            new_token = data.json()["access_token"]
+            if new_token:
+                response.set_cookie("token", str(new_token), path = path, httponly = True, secure = True, samesite = "strict")
+                return reponse
+            else:
+                # This shouldn't happen,
+                logout_user()
+                error_for(endpoint="views.static_html", message="OAuth provider ddin't return valid access token")
+                return redirect(url_for("auth.login"))
+
+        except Exception as e:
+            # If logged out will raise an exception
+            logout_user()
+            error_for(endpoint="views.static_html", message=str(e))
+            return redirect(url_for("auth.login"))
+
 
     @plugin_bp.route('/admin/sso')
     @admins_only
@@ -145,10 +215,6 @@ def load_bp(oauth):
         except:
             userinfo = []
 
-        print(str(api_data), file=sys.stderr)
-        print(str(userinfo), file=sys.stderr)
-
-
         if "email" in api_data:
             user_email = api_data["email"]
         elif "email" in userinfo :
@@ -202,31 +268,38 @@ def load_bp(oauth):
 
         login_user(user)
 
+        if request.headers.get("X-Forwarded-Prefix"):
+            path = request.headers.get("X-Forwarded-Prefix")
+        else:
+            path = "/"
         response = redirect(url_for("challenges.listing"))
+        response.set_cookie("sso_client_id", str(client_id), path = path, httponly = True, secure = True, samesite = "strict")
+        response.set_cookie("token", str(token), path = path, httponly = True, secure = True, samesite = "strict")
         if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
+            # Save end_session_endpoint for logout function
             metadata = client.load_server_metadata()
+            response.set_cookie("end_session_endpoint", metadata["end_session_endpoint"], path = path, httponly = True, secure = True, samesite = "strict")
 
-            # Save id_token and end_session_endpoint as cookie to allow logout
-            # Use http_only and same_site to secure the cookie. We might be
-            # behind a reverse proxy so don't set secure
-            if "id_token" in token:
-                response.set_cookie("id_token", token["id_token"], httponly = True, samesite="strict", secure = True)
-            if "end_session_endpoint" in metadata:
-                response.set_cookie("end_session_endpoint", metadata["end_session_endpoint"], httponly = True, samesite = "strict", secure = True)
         return response
+
 
     @plugin_bp.route("/sso/logout", methods = ['GET'])
     def sso_logout():
         if current_user.authed():
             logout_user()
 
-        id_token = request.cookies.get("id_token")
-        end_session_endpoint = request.cookies.get("end_session_endpoint")
         redirect_url = url_for("views.static_html")
-        if not end_session_endpoint or not id_token:
-            return redirect(redirect_url)
+        token = request.cookies.get("token")
+        if token:
+            id_token = json.loads(token.replace("'", '"'))["id_token"]
+            end_session_endpoint = request.cookies.get("end_session_endpoint")
+            if id_token and end_session_endpoint:
+                return redirect(end_session_endpoint + "?id_token_hint=" + id_token + "&post_logout_redirect_uri=" + redirect_url)
+            else:
+                error_for(endpoint="views.static_html", message="No id_token or end_session_endpoint for SSO logout")
+                return redirect(redirect_url)
         else:
-            end_session_url = end_session_endpoint + "?id_token_hint=" + id_token + "&post_logout_redirect_uri=" + redirect_url 
-            return redirect(end_session_url)
+            error_for(endpoint="views.static_html", message="No token or userinfo cookie for SSO logout")
+            return redirect(redirect_url)
 
     return plugin_bp

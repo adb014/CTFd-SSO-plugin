@@ -1,7 +1,10 @@
 from CTFd.config import process_boolean_str
 from CTFd.models import db
 from CTFd.utils import get_app_config
+#from authlib.integrations.flask_client import token_update
 
+def fetch_token():
+    return request.cookies.get("token")
 
 class OAuthClients(db.Model):
     __tablename__ = "oauth_clients"
@@ -34,6 +37,7 @@ class OAuthClients(db.Model):
                 client_id=self.client_id,
                 client_secret=self.client_secret,
                 server_metadata_url=self.server_metadata_url,
+                fetch_token=fetch_token,
                 client_kwargs={'scope': scope}
             )
         else:
@@ -45,6 +49,7 @@ class OAuthClients(db.Model):
                 authorize_url=self.authorize_url,
                 api_base_url=self.api_base_url,
                 server_metadata_url=f'{self.api_base_url}/.well-known/openid-configuration',
+                fetch_token=fetch_token,
                 client_kwargs={'scope': scope}
             )
 
