@@ -20,7 +20,7 @@ from .models import OAuthClients
 import json
 import sys
 import time
-import urllib
+import requests
 
 plugin_bp = Blueprint('sso', __name__, template_folder='templates', static_folder='static', static_url_path='/static/sso')
 
@@ -58,6 +58,7 @@ def load_bp(oauth):
         token = json.loads(token.replace("'", '"'))
         refresh_token = token["refresh_token"]
         if not refresh_token:
+            response.delete_cookie("token")
             return response
 
         # If expiry of the access_token is longer then 60 seconds
@@ -71,38 +72,36 @@ def load_bp(oauth):
         # parse the request myself
         client_id = request.cookies.get("sso_client_id")
         if client_id:
-            client_id = int(client_id)
+            client = OAuthClients.query.filter_by(id=client_id).first()
         else:
-            client_id = 1
-        client = oauth.create_client(client_id)
-        body = urllib.parse.urlencode(
-            {
-                "refresh_token": refresh_token,
-                "client_id": client.client_id,
-                "client_secret": client.client_secret,
-                "grant_type": "refresh_token",
-                "scope": token["scope"],
-            }
-        )
-        try:
-            data = client.request("POST", client.access_token_url, token, body=body,
-                headers={"Content-Type": "application/x-www-form-urlencoded"})
+            client = OAuthClients.query.filter_by(id=1).first()
 
-            new_token = data.json()["access_token"]
-            if new_token:
+        try:
+            data = requests.post(client.access_token_url, data = {
+                    "refresh_token": refresh_token,
+                    "client_id": client.client_id,
+                    "client_secret": client.client_secret,
+                    "grant_type": "refresh_token",
+                    "scope": token["scope"],
+                }
+            ).json()
+
+            if "error" in data:
+                raise ValueError("SSO logout due to idle time")
+
+            if "access_token" in data:
+                new_token = data["access_token"]
                 response.set_cookie("token", str(new_token), path = path, httponly = True, secure = True, samesite = "strict")
-                return reponse
+                return response
             else:
-                # This shouldn't happen,
-                logout_user()
-                error_for(endpoint="views.static_html", message="OAuth provider ddin't return valid access token")
-                return redirect(url_for("auth.login"))
+                # This shouldn't happen
+                raise ValueError("OAuth provider didn't return valid access token")
 
         except Exception as e:
-            # If logged out will raise an exception
-            logout_user()
-            error_for(endpoint="views.static_html", message=str(e))
-            return redirect(url_for("auth.login"))
+            if current_user.authed():
+                logout_user()
+            response.delete_cookie("token")
+            return response
 
 
     @plugin_bp.route('/admin/sso')
@@ -114,8 +113,8 @@ def load_bp(oauth):
     @plugin_bp.route('/admin/sso/client/<int:client_id>', methods = ['GET', 'POST', 'DELETE'])
     @admins_only
     def sso_details(client_id):
+        client = OAuthClients.query.filter_by(id=client_id).first()
         if request.method == 'DELETE':
-            client = OAuthClients.query.filter_by(id=client_id).first()
             if client:
                 client.disconnect(oauth)
                 db.session.delete(client)
@@ -123,22 +122,30 @@ def load_bp(oauth):
                 db.session.flush()
             return redirect(url_for('sso.sso_list'))
         elif request.method == "POST":
-            client = OAuthClients.query.filter_by(id=client_id).first()
             client.client_id = request.form["client_id"]
             client.client_secret = request.form["client_secret"]
-            client.access_token_url = request.form["access_token_url"]
-            client.authorize_url = request.form["authorize_url"]
-            client.api_base_url = request.form["api_base_url"]
-            client.server_metadata_url = request.form["server_metadata_url"]
             client.color = request.form["color"]
             client.enabled = ("enabled" in request.form and request.form["enabled"] == "y")
+            if request.form["server_metadata_url"]:
+                # Get the other URL from the server metadata site
+                client.server_metadata_url = request.form["server_metadata_url"]
+                metadata = requests.get(client.server_metadata_url).json()
+                client.access_token_url = metadata["token_endpoint"]
+                client.authorize_url = metadata["authorization_endpoint"]
+                client.api_base_url = metadata["issuer"]
+            else:
+                # Setup default metadata url
+                client.access_token_url = request.form["access_token_url"]
+                client.authorize_url = request.form["authorize_url"]
+                client.api_base_url = request.form["api_base_url"]
+                client.server_metadata_url = request.form["api_base_url"] + "/.well-known/openid-configuration"
+
             db.session.commit()
             db.session.flush()
             client.register(oauth)
 
             return redirect(url_for('sso.sso_list'))
         else:
-          client = OAuthClients.query.filter_by(id=client_id).first()
           form = OAuthForm()
           form.name.data = client.name
           form.client_id.data = client.client_id
@@ -161,12 +168,22 @@ def load_bp(oauth):
             name = request.form["name"]
             client_id = request.form["client_id"]
             client_secret = request.form["client_secret"]
-            access_token_url = request.form["access_token_url"]
-            authorize_url = request.form["authorize_url"]
-            api_base_url = request.form["api_base_url"]
-            server_metadata_url = request.form["server_metadata_url"]
             color = request.form["color"]
             enabled = ("enabled" in request.form and request.form["enabled"] == "y")
+
+            if request.form["server_metadata_url"]:
+                server_metadata_url = request.form["server_metadata_url"]
+                metadata = requests.get(server_metadata_url).json()
+                access_token_url = metadata["token_endpoint"]
+                authorize_url = metadata["authorization_endpoint"]
+                api_base_url = metadata["issuer"]
+            else:
+                # Setup default metadata url
+                access_token_url = request.form["access_token_url"]
+                authorize_url = request.form["authorize_url"]
+                api_base_url = request.form["api_base_url"]
+                server_metadata_url = request.form["api_base_url"] + "/.well-known/openid-configuration"
+
             client = OAuthClients(
                 name=name,
                 client_id=client_id,

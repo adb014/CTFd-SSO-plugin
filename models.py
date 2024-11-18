@@ -31,27 +31,17 @@ class OAuthClients(db.Model):
         else:
           scope = 'profile openid email'
 
-        if self.server_metadata_url:
-            oauth.register(
-                name=self.id,
-                client_id=self.client_id,
-                client_secret=self.client_secret,
-                server_metadata_url=self.server_metadata_url,
-                fetch_token=fetch_token,
-                client_kwargs={'scope': scope}
-            )
-        else:
-            oauth.register(
-                name=self.id,
-                client_id=self.client_id,
-                client_secret=self.client_secret,
-                access_token_url=self.access_token_url,
-                authorize_url=self.authorize_url,
-                api_base_url=self.api_base_url,
-                server_metadata_url=f'{self.api_base_url}/.well-known/openid-configuration',
-                fetch_token=fetch_token,
-                client_kwargs={'scope': scope}
-            )
+        oauth.register(
+            name=self.id,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+            access_token_url=self.access_token_url,
+            authorize_url=self.authorize_url,
+            api_base_url=self.api_base_url,
+            server_metadata_url=self.server_metadata_url,
+            fetch_token=fetch_token,
+            client_kwargs={'scope': scope}
+        )
 
     def disconnect(self, oauth):
         oauth._registry[self.id] = None
