@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, redirect, render_template, request, url_for, session
 from wtforms import StringField, BooleanField
 from wtforms.validators import InputRequired, Optional
 
@@ -51,15 +51,12 @@ def load_bp(oauth):
         if request.path.endswith("/login"):
             return response
 
-        token = request.cookies.get("token")
-        if not token:
+        if not "token" in session:
             return response
-
-        token = json.loads(token.replace("'", '"'))
+        token = session["token"]
         refresh_token = token["refresh_token"]
         if not refresh_token:
-            response.delete_cookie("token")
-            return response
+            session.pop("token")
 
         # If expiry of the access_token is longer then 60 seconds
         # away, don't refresh. The refresh_token will expire
@@ -91,7 +88,7 @@ def load_bp(oauth):
 
             if "access_token" in data:
                 new_token = data["access_token"]
-                response.set_cookie("token", str(new_token), path = path, httponly = True, secure = True, samesite = "strict")
+                session["token"] = str(new_token)
                 return response
             else:
                 # This shouldn't happen
@@ -100,7 +97,8 @@ def load_bp(oauth):
         except Exception as e:
             if current_user.authed():
                 logout_user()
-            response.delete_cookie("token")
+            if "token" in session:
+                session.pop("token")
             return response
 
 
@@ -220,6 +218,7 @@ def load_bp(oauth):
             client = oauth.create_client(client_id)
             token = client.authorize_access_token()
         except Exception as e:
+            log("logins", "[{date}] {ip} - failed sso login attempt")
             error_for(endpoint="auth.login", message=str(e))
             return redirect(url_for("auth.login"))
 
@@ -265,18 +264,43 @@ def load_bp(oauth):
                 db.session.add(user)
                 db.session.commit()
             else:
-                log("logins", "[{date}] {ip} - Public registration via MLC blocked")
+                log("logins", "[{date}] {ip} - Public registration via SSO blocked")
                 error_for(
                     endpoint="auth.login",
                     message="Public registration is disabled. Please try again later.",
                 )
-                return redirect(url_for("auth.login"))
+                if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
+                    # Use SSO logout function, to allow a new login attempt
+                    return redirect(url_for("sso.sso_logout"))
+                else:
+                    return redirect(url_for("auth.login"))
 
         user.verified = True
         db.session.commit()
 
-        if user_roles is not None and len(user_roles) > 0 and user_roles[0] in ["admin", "user"]:
-            user_role = user_roles[0]
+        if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
+            roles = get_app_config("OAUTH_ALLOWED_ADMIN_ROLES")
+            if roles and not user_roles is None and len(user_roles) > 0:
+                if type(roles) is str:
+                    if "," in roles:
+                        allowed_roles = [s for s in roles.split(",")]
+                    else:
+                        allowed_roles = [roles]
+                else:
+                    allowed_roles = ["admin"]
+
+                is_admin = False
+                for r in user_roles:
+                    if r in allowed_roles:
+                        is_admin = True
+                        break
+                if is_admin:
+                    user_role = "admin"
+                else:
+                    user_role = "user"
+            else:
+                user_role = "user"
+
             if user_role != user.type:
                 user.type = user_role
                 db.session.commit()
@@ -284,20 +308,16 @@ def load_bp(oauth):
                 clear_user_session(user_id=user.id)
 
         login_user(user)
+        log("logins", "[{date}] {ip} - {name} logged in via sso", name=user.name)
 
-        if request.headers.get("X-Forwarded-Prefix"):
-            path = request.headers.get("X-Forwarded-Prefix")
-        else:
-            path = "/"
-        response = redirect(url_for("challenges.listing"))
-        response.set_cookie("sso_client_id", str(client_id), path = path, httponly = True, secure = True, samesite = "strict")
-        response.set_cookie("token", str(token), path = path, httponly = True, secure = True, samesite = "strict")
+        session["token"] = token
         if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
             # Save end_session_endpoint for logout function
             metadata = client.load_server_metadata()
-            response.set_cookie("end_session_endpoint", metadata["end_session_endpoint"], path = path, httponly = True, secure = True, samesite = "strict")
+            session["sso_client_id"] = client_id
+            session["end_session_enpoint"] = metadata["end_session_endpoint"]
 
-        return response
+        return redirect(url_for("challenges.listing"))
 
 
     @plugin_bp.route("/sso/logout", methods = ['GET'])
@@ -306,17 +326,13 @@ def load_bp(oauth):
             logout_user()
 
         redirect_url = url_for("views.static_html")
-        token = request.cookies.get("token")
-        if token:
+        try:
+            token = session["token"]
             id_token = json.loads(token.replace("'", '"'))["id_token"]
-            end_session_endpoint = request.cookies.get("end_session_endpoint")
-            if id_token and end_session_endpoint:
-                return redirect(end_session_endpoint + "?id_token_hint=" + id_token + "&post_logout_redirect_uri=" + redirect_url)
-            else:
-                error_for(endpoint="views.static_html", message="No id_token or end_session_endpoint for SSO logout")
-                return redirect(redirect_url)
-        else:
-            error_for(endpoint="views.static_html", message="No token or userinfo cookie for SSO logout")
+            end_session_endpoint = session["end_session_endpoint"]
+            return redirect(end_session_endpoint + "?id_token_hint=" + id_token + "&post_logout_redirect_uri=" + redirect_url)
+        except:
+            error_for(endpoint="views.static_html", message="No token or userinfo session data for SSO logout")
             return redirect(redirect_url)
 
     return plugin_bp

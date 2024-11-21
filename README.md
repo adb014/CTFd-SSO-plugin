@@ -12,6 +12,7 @@ Works perfectly with a large variety of identity management solutions, like KeyC
 2. Install required python packages. If you are using Docker, it is done by rebuilding the container. Instead, if you are using other hosting solutions, you can install them with the command `pip3 install -r requirements.txt` from the plugin folder (`CTFd/plugins/CTFd-SSO-plugin`).
 3. Edit the `[extra]` section of `CTFd/config.ini` adding these two values:
    - `OAUTH_HAS_ROLES`: set `True` if you want to allow automatic registration of administrators via OAuth. This relies on the API Endpoint returning the `roles` key. Default is `False`.
+   - `OAUTH_ALLOWED_ADMIN_ROLES`: a comma separated list of roles that will be treated as administrators 
    - `OAUTH_CREATE_BUTTONS`: set `True` if you want to automatically add the OAuth login buttons in the login page. Default is `False`.
    - `OAUTH_NO_LOCAL_USERS`: set `True` if you only want to allow OAuth logins
    - `OAUTH_SSO_LOGOUT`: set `True` if you wish for a logout from CTFd to force the logout from the OAuth provider. This requires that the provider supplies a `end_session_endpoint` in its server metadata.
@@ -22,17 +23,17 @@ Works perfectly with a large variety of identity management solutions, like KeyC
 
 ## Automatic account creation
 
-If CTFd is configured to allow acccount creation, the user of OAuth for a missing account will create the account. The test for an existing account is based on the email address returned from the OAuth provider.
+If CTFd is configured to allow account creation, the user of OAuth for a missing account will create the account. The test for an existing account is based on the email address returned from the OAuth provider.
 
 The user is created based on the `id_token` returned from the OAuth server if `OAUTH_HAS_ROLES` is not set. Otherwise, as discussed below the user is created based on the `roles` key returned by the API Endpoint.
 
 ## Admin accounts
 
-If you want to automatically create admin accounts via the Identity Provider, make sure that the API Endpoint returns a key `roles` containing an array. The first element of that array will be set as the user role in CTFd.
+If you want to automatically create admin accounts via the Identity Provider, make sure that the API Endpoint returns a key `roles` containing an array.
 
 For example if an user should be admin, the Identity Provider should return something like: `{"preferred_username": "username", "email": "example@ctfd.org", "roles": ["admin"]}`
 
-The allowed roles for CTFd are `admin` and `user`, but the latter is set by default. This behavior is only possible with the `OAUTH_HAS_ROLES` configuration set. In this case the adminsitration role must be assigned to the user form the CTFd adminstration console.
+The allowed administrator roles for CTFd are determined by the list `OAUTH_ALLOWED_ADLIN_ROLES`, if a user has a role in this list they will be treated as an administrator. This behavior is only possible with the `OAUTH_HAS_ROLES` configuration set. In this other case the administration role must be assigned to the user form the CTFd administration console.
 
 ## Login buttons
 
