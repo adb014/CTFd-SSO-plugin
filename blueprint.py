@@ -315,23 +315,24 @@ def load_bp(oauth):
             # Save end_session_endpoint for logout function
             metadata = client.load_server_metadata()
             session["sso_client_id"] = client_id
-            session["end_session_enpoint"] = metadata["end_session_endpoint"]
+            session["end_session_endpoint"] = metadata["end_session_endpoint"]
 
         return redirect(url_for("challenges.listing"))
 
 
     @plugin_bp.route("/sso/logout", methods = ['GET'])
     def sso_logout():
-        if current_user.authed():
-            logout_user()
-
         redirect_url = url_for("views.static_html")
         try:
             token = session["token"]
-            id_token = json.loads(token.replace("'", '"'))["id_token"]
+            id_token = token["id_token"]
             end_session_endpoint = session["end_session_endpoint"]
+            if current_user.authed():
+                logout_user()
             return redirect(end_session_endpoint + "?id_token_hint=" + id_token + "&post_logout_redirect_uri=" + redirect_url)
         except:
+            if current_user.authed():
+                logout_user()
             error_for(endpoint="views.static_html", message="No token or userinfo session data for SSO logout")
             return redirect(redirect_url)
 
