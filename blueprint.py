@@ -54,9 +54,10 @@ def load_bp(oauth):
         if not "token" in session:
             return response
         token = session["token"]
-        refresh_token = token["refresh_token"]
-        if not refresh_token:
+        if not "refresh_token" in token :
             session.pop("token")
+            return response
+        refresh_token = token["refresh_token"]
 
         # If expiry of the access_token is longer then 60 seconds
         # away, don't refresh. The refresh_token will expire
