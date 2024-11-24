@@ -54,7 +54,7 @@ def load_bp(oauth):
         if not "token" in session:
             return response
         token = session["token"]
-        if not "refresh_token" in token :
+        if not "refresh_token" in token:
             session.pop("token")
             return response
         refresh_token = token["refresh_token"]
@@ -65,10 +65,7 @@ def load_bp(oauth):
         if time.time() < token["expires_at"] - 60:
             return response
 
-        # As I've stored the token in a cookie, I can't use
-        # the on_update_token signal of authlib. Create and
-        # parse the request myself
-        client_id = request.cookies.get("sso_client_id")
+        client_id = session["sso_client_id"]
         if client_id:
             client = OAuthClients.query.filter_by(id=client_id).first()
         else:
@@ -323,18 +320,24 @@ def load_bp(oauth):
 
     @plugin_bp.route("/sso/logout", methods = ['GET'])
     def sso_logout():
-        redirect_url = url_for("views.static_html")
         try:
             token = session["token"]
-            id_token = token["id_token"]
+            refresh_token = token["refresh_token"]
             end_session_endpoint = session["end_session_endpoint"]
-            if current_user.authed():
-                logout_user()
-            return redirect(end_session_endpoint + "?id_token_hint=" + id_token + "&post_logout_redirect_uri=" + redirect_url)
-        except:
-            if current_user.authed():
-                logout_user()
+            client_id = session["sso_client_id"]
+            client = OAuthClients.query.filter_by(id=client_id).first()
+
+            retval = requests.post(end_session_endpoint, data = {
+                    "refresh_token": refresh_token,
+                    "client_id": client.client_id,
+                    "client_secret": client.client_secret,
+                }
+            )
+        except Exception as e:
             error_for(endpoint="views.static_html", message="No token or userinfo session data for SSO logout")
-            return redirect(redirect_url)
+
+        if current_user.authed():
+            logout_user()
+        return redirect(url_for("views.static_html"))
 
     return plugin_bp
