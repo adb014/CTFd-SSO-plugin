@@ -39,40 +39,46 @@ class OAuthForm(BaseForm):
 
 def load_bp(oauth):
 
-    @plugin_bp.after_app_request
-    def refresh_token(response):
+    @plugin_bp.before_app_request
+    def refresh_token():
         # We are not using introspection to validate the tokens
         # but we still want to refresh the token, so that the
         # user isn't logged out of the OAuth provider, even though
         # CTFd is used. This is also used to impose the OAuth
         # providers idle time policy
 
-        # If on login page don't refresh the token. Avoid infinite loop
+        # If on login page, pop rather than refresh the token. Avoid infinite loop
         if request.path.endswith("/login"):
-            return response
-
-        if not "token" in session:
-            return response
-        token = session["token"]
-        if not "refresh_token" in token:
-            session.pop("token")
-            return response
-        refresh_token = token["refresh_token"]
-
-        # If expiry of the access_token is longer then 60 seconds
-        # away, don't refresh. The refresh_token will expire
-        # afterwards in any case
-        if time.time() < token["expires_at"] - 60:
-            return response
-
-        client_id = session["sso_client_id"]
-        if client_id:
-            client = OAuthClients.query.filter_by(id=client_id).first()
-        else:
-            client = OAuthClients.query.filter_by(id=1).first()
+            if "token" in session:
+                session.pop("token")
+            return
 
         try:
-            data = requests.post(client.access_token_url, data = {
+            if not "token" in session:
+                raise ValueError("SSO logout - missing token")
+            token = session["token"]
+
+            # If expiry of the access_token has not expired, don't refresh.
+            # The refresh_token will expire afterwards in any case
+            if "expires_at" in token and (time.time() < int(token["expires_at"])):
+                return
+
+            if "refresh_token" not in token:
+                raise ValueError("SSO logout - missing refresh_token")
+            refresh_token = token["refresh_token"]
+
+            if "sso_client_id" not in session:
+                client_id = session("sso_client_id")
+                client = OAuthClients.query.filter_by(id=client_id).first()
+            else:
+                client = OAuthClients.query.filter_by(id=1).first()
+
+            access_token_url = client.access_token_url
+            if not access_token_url:
+                metadata = requests.get(client.server_metadata_url).json()
+                access_token_url = metadata["token_endpoint"]
+
+            data = requests.post(access_token_url, data = {
                     "refresh_token": refresh_token,
                     "client_id": client.client_id,
                     "client_secret": client.client_secret,
@@ -82,23 +88,23 @@ def load_bp(oauth):
             ).json()
 
             if "error" in data:
-                raise ValueError("SSO logout due to idle time")
+                raise ValueError("SSO logout - due to idle time")
 
             if "access_token" in data:
-                new_token = data["access_token"]
-                session["token"] = str(new_token)
-                return response
+                if "expires_at" not in data and "expires_in" in data:
+                    data["expires_at"] = time.time() + data["expires_in"]
+                session["token"] = data
             else:
                 # This shouldn't happen
-                raise ValueError("OAuth provider didn't return valid access token")
+                raise ValueError("SSO Logout - OAuth provider didn't return valid access token")
 
         except Exception as e:
+            log("logins", "[{date}] {ip} - {err}", err=str(e))
             if current_user.authed():
                 logout_user()
             if "token" in session:
                 session.pop("token")
-            return response
-
+            return redirect(url_for("auth.login"))
 
     @plugin_bp.route('/admin/sso')
     @admins_only
@@ -308,6 +314,8 @@ def load_bp(oauth):
         login_user(user)
         log("logins", "[{date}] {ip} - {name} logged in via sso", name=user.name)
 
+        if "expires_at" not in token and "expires_in" in token:
+            token["expires_at"] = time.time() + token["expires_in"]
         session["token"] = token
         if process_boolean_str(get_app_config("OAUTH_SSO_LOGOUT")):
             # Save end_session_endpoint for logout function
@@ -320,24 +328,18 @@ def load_bp(oauth):
 
     @plugin_bp.route("/sso/logout", methods = ['GET'])
     def sso_logout():
+        redirect_url = url_for("views.static_html")
         try:
             token = session["token"]
-            refresh_token = token["refresh_token"]
+            id_token = token["id_token"]
             end_session_endpoint = session["end_session_endpoint"]
-            client_id = session["sso_client_id"]
-            client = OAuthClients.query.filter_by(id=client_id).first()
-
-            retval = requests.post(end_session_endpoint, data = {
-                    "refresh_token": refresh_token,
-                    "client_id": client.client_id,
-                    "client_secret": client.client_secret,
-                }
-            )
-        except Exception as e:
+            if current_user.authed():
+                logout_user()
+            return redirect(end_session_endpoint + "?id_token_hint=" + id_token + "&post_logout_redirect_uri=" + redirect_url)
+        except:
+            if current_user.authed():
+                logout_user()
             error_for(endpoint="views.static_html", message="No token or userinfo session data for SSO logout")
-
-        if current_user.authed():
-            logout_user()
-        return redirect(url_for("views.static_html"))
+            return redirect(redirect_url)
 
     return plugin_bp
