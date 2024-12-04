@@ -31,7 +31,7 @@ class OAuthForm(BaseForm):
     client_secret = StringField("OAuth client secret", validators=[InputRequired()])
     access_token_url = StringField("Access token url", validators=[Optional()])
     authorize_url = StringField("Authorization url", validators=[Optional()])
-    api_base_url = StringField("User info url", validators=[Optional()])
+    api_base_url = StringField("Realm url", validators=[Optional()])
     server_metadata_url = StringField("Server metadata url", validators=[Optional()])
     color = StringField("Button Color", validators=[InputRequired()])
     enabled = BooleanField("Enabled")
