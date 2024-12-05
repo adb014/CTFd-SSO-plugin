@@ -47,15 +47,16 @@ def load_bp(oauth):
         # CTFd is used. This is also used to impose the OAuth
         # providers idle time policy
 
-        # If on login page, pop rather than refresh the token. Avoid infinite loop
-        if request.path.endswith("/login"):
-            if "token" in session:
-                session.pop("token")
+        # If on login path or attempting SSO login/logout don't refresh
+        log("logins", "[{date}] {ip} - Path '{p}'", p=request.path)
+        if request.path.startswith("/login") or request.path.startswith("/sso/"):
+            return
+
+        # If no token then either not SSO or not logged in yet
+        if not "token" in session:
             return
 
         try:
-            if not "token" in session:
-                raise ValueError("SSO logout - missing token")
             token = session["token"]
 
             # If expiry of the access_token has not expired, don't refresh.
