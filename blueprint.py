@@ -47,9 +47,8 @@ def load_bp(oauth):
         # CTFd is used. This is also used to impose the OAuth
         # providers idle time policy
 
-        # If on login path or attempting SSO login/logout don't refresh
-        log("logins", "[{date}] {ip} - Path '{p}'", p=request.path)
-        if request.path.startswith("/login") or request.path.startswith("/sso/"):
+        # If on login path or attempting SSO login/logout don't refresh 
+        if request.path.startswith("/login") or request.path.startswith("/sso/"): 
             return
 
         # If no token then either not SSO or not logged in yet
