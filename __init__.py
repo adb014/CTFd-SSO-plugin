@@ -56,21 +56,48 @@ def update_login_template(app):
 
 
 def update_challenge_template(app):
-    # This injection is needed so that clicking on the challenge buttons 
-    # after the refresh_token has expired will force an SSO login attempt.
-    # It would be better if a failure of the fetch on "/api/v1/challenges/<id>" 
-    # forced the SSO login, but difficult to do from a plugin
+    """
+    Gets the actual challenges template and injects an
+    event listener to test is an SSO logout has occurred
+
+    This injection is needed so that clicking on the challenge buttons
+    after the refresh_token has expired will force an SSO login attempt.
+    It would be better if a failure of the fetch on "/api/v1/challenges/<id>"
+    forced the SSO login, but difficult to do from a plugin
+    """
+
     environment = app.jinja_environment
     original = app.jinja_loader.get_source(environment, 'challenges.html')[0]
     match = re.search('{% block scripts %}', original)
     if match:
-        pos = match.start()
+        pos = match.end()
         injecting_file_path = os.path.join(PLUGIN_PATH, 'templates/challenges_sso.html')
         with open(injecting_file_path, 'r') as f:
             injecting = f.read()
-        original = original[:pos+19] + injecting + original[pos+19:]
+        original = original[:pos] + injecting + original[pos:]
 
     override_template('challenges.html', original)
+
+
+def update_settings_template(app):
+    """
+    Gets the actual settings template and disabled the
+    name and email fields as treated by our IDP
+    """
+
+    environment = app.jinja_environment
+    original = app.jinja_loader.get_source(environment, 'settings.html')[0]
+    match = re.search('form.name\(', original)
+    if match:
+        pos = match.end()
+        original = original[:pos] + 'disabled=True, '+ original[pos:]
+
+    match = re.search('form.email\(', original)
+    if match:
+        pos = match.end()
+        original = original[:pos] + 'disabled=True, '+ original[pos:]
+
+    override_template('settings.html', original)
 
 
 def numactive(clients):
@@ -98,6 +125,7 @@ def load(app):
        process_boolean_str(get_app_config("OAUTH_NO_LOCAL_USERS")):
         update_login_template(app)
         update_challenge_template(app)
+        update_settings_template(app)
 
     # Register the blueprint containing the routes
     bp = load_bp(oauth)
