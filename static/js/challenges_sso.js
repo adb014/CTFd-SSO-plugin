@@ -1,10 +1,12 @@
-async function isSSOLoggedIn() {
+document.body.addEventListener("click", () => {
   CTFd.fetch("/api/v1/users/me", {
     method: "GET",
     credentials: "same-origin",
     headers: {"Accept": "application/json",},
   }).then((response) => {
     return response.json();
+  }).then((response) => {
+    if (! response.success) throw new Error("SSO logout")
   }).catch(() => {
     window.location =
       CTFd.config.urlRoot +
@@ -13,10 +15,4 @@ async function isSSOLoggedIn() {
       window.location.pathname +
       window.location.hash;
   });
-}
-
-setInterval(() = {
-  Array.prototype.forEach.call(document.getElementsByClassName("challenge-button"), (chall) =>
-      chall.addEventListener("click", isSSOLoggedIn); 
-}, 100);
-
+}, false);

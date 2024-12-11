@@ -57,7 +57,7 @@ def update_login_template(app):
 
 def update_challenge_template(app):
     # This injection is needed so that clicking on the challenge buttons 
-    # After the refresh_token has expired will force an SSO login attempt.
+    # after the refresh_token has expired will force an SSO login attempt.
     # It would be better if a failure of the fetch on "/api/v1/challenges/<id>" 
     # forced the SSO login, but difficult to do from a plugin
     environment = app.jinja_environment
