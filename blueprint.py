@@ -279,10 +279,6 @@ def load_bp(oauth):
                 else:
                     return redirect(url_for("auth.login"))
 
-        # Set user.oauth_id to tell CTFd that user details are managed by our IDP
-        # Integer value, but the value doesn't mater
-        user.oauth_id = None
-
         user.verified = True
         db.session.commit()
 
