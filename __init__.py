@@ -54,6 +54,25 @@ def update_login_template(app):
             new_template = original[:pos] + injecting + original[pos:]
         override_template('login.html', new_template)
 
+
+def update_challenge_template(app):
+    # This injection is needed so that clicking on the challenge buttons 
+    # After the refresh_token has expired will force an SSO login attempt.
+    # It would be better if a failure of the fetch on "/api/v1/challenges/<id>" 
+    # forced the SSO login, but difficult to do from a plugin
+    environment = app.jinja_environment
+    original = app.jinja_loader.get_source(environment, 'challenges.html')[0]
+    match = re.search('{% block scripts %}', original)
+    if match:
+        pos = match.start()
+        injecting_file_path = os.path.join(PLUGIN_PATH, 'templates/challenges_sso.html')
+        with open(injecting_file_path, 'r') as f:
+            injecting = f.read()
+        original = original[:pos+19] + injecting + original[pos+19:]
+
+    override_template('challenges.html', original)
+
+
 def numactive(clients):
   n = 0
   for client in clients:
@@ -78,6 +97,7 @@ def load(app):
     if process_boolean_str(get_app_config("OAUTH_CREATE_BUTTONS")) or \
        process_boolean_str(get_app_config("OAUTH_NO_LOCAL_USERS")):
         update_login_template(app)
+        update_challenge_template(app)
 
     # Register the blueprint containing the routes
     bp = load_bp(oauth)
