@@ -6,13 +6,12 @@ document.body.addEventListener("click", () => {
   }).then((response) => {
     return response.json();
   }).then((response) => {
-    if (! response.success) throw new Error("SSO logout")
-  }).catch(() => {
-    window.location =
-      CTFd.config.urlRoot +
-      "/login?next=" +
-      CTFd.config.urlRoot +
-      window.location.pathname +
-      window.location.hash;
-  });
+    if (! response.success)
+      window.location =    
+        CTFd.config.urlRoot +
+        "/login?next=" +     
+        CTFd.config.urlRoot +
+        window.location.pathname +
+        window.location.hash;     
+  });                        
 }, false);
