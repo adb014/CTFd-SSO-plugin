@@ -1,7 +1,7 @@
 from CTFd.config import process_boolean_str
 from CTFd.models import db
 from CTFd.utils import get_app_config
-#from authlib.integrations.flask_client import token_update
+import json
 
 def fetch_token():
     return request.cookies.get("token")
@@ -46,3 +46,16 @@ class OAuthClients(db.Model):
     def disconnect(self, oauth):
         oauth._registry[self.id] = None
         oauth._clients[self.id] = None
+
+    def json(self):
+        return {'id': self.id, 
+                'name': self.name,
+                'client_id' : self.client_id,
+                'client_secret': self.client_secret,
+                'access_token_url': self.access_token_url,
+                'authorize_url': self.authorize_url,
+                'api_base_url': self.api_base_url,
+                'server_metadata_url': self.server_metadata_url,
+                'color': self.color,
+                'icon': self.icon,
+                'enabled': self.enabled}
