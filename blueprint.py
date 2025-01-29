@@ -342,4 +342,115 @@ def load_bp(oauth):
             error_for(endpoint="views.static_html", message="No token or userinfo session data for SSO logout")
             return redirect(redirect_url)
 
+
+    @plugin_bp.route("/api/v1/sso", methods = ['GET', 'POST'])
+    @admins_only
+    def sso_oauth_tokens():
+        if request.method == 'GET':
+            clients = OAuthClients.query.all()
+            data = []
+            for client in clients:
+               data.append(client.json())
+            if data:
+                return {"success": True, "data": data}
+            else:
+                return {"success": False}
+        else:
+            try:
+                data = request.form or request.get_json()
+                name = data.get("name", "")
+                client_id = data.get("client_id", "")
+                client_secret = data.get("client_secret", "")
+                color = data.get("color", "")
+                enabled = data.get("enabled", True)
+                if "server_metadata_url" in data:
+                    server_metadata_url = data["server_metadata_url"]
+                    metadata = requests.get(server_metadata_url).json()
+                    access_token_url = metadata["token_endpoint"]
+                    authorize_url = metadata["authorization_endpoint"]
+                    api_base_url = metadata["issuer"]
+                else:
+                    # Setup default metadata url
+                    access_token_url = data.get("access_token_url", "")
+                    authorize_url = data.get("authorize_url", "")
+                    api_base_url = data.get("api_base_url", "")
+                    server_metadata_url = api_base_url + "/.well-known/openid-configuration"
+
+                client = OAuthClients(
+                    name=name,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    access_token_url=access_token_url,
+                    authorize_url=authorize_url,
+                    api_base_url=api_base_url,
+                    server_metadata_url=server_metadata_url,
+                    color=color,
+                    enabled=enabled
+                )
+                db.session.add(client)
+                db.session.commit()
+                db.session.flush()
+                client.register(oauth)
+
+                return {"success": True, "data": client.json()}
+            except:
+                return {"success": False}
+
+
+    @plugin_bp.route("/api/v1/sso/<int:client_id>", methods = ['GET', 'PATCH', 'DELETE'])
+    @admins_only
+    def sso_oauth_token(client_id):
+        client = OAuthClients.query.filter_by(id=client_id).first()
+        if request.method == 'GET':
+            if client:
+                return {"success": True, "data": client.json()}
+            else:
+                return {"success": False}
+        elif request.method == "PATCH":
+            try:
+                data = request.form or request.get_json()
+                if "name" in data:
+                    client.name = data["name"]
+                if "client_id" in data:
+                    client.client_id = data["client_id"]
+                if "client_secret" in data:
+                    client.client_secret = data["client_secret"]
+                if "color" in data:
+                    client.color = data["color"]
+                if "enabled" in data:
+                    client.client_id = data["enabled"]
+                if "server_metadata_url" in data:
+                    client.server_metadata_url = data["server_metadata_url"]
+                    client.metadata = requests.get(server_metadata_url).json()
+                    client.access_token_url = metadata["token_endpoint"]
+                    client.authorize_url = metadata["authorization_endpoint"]
+                    client.api_base_url = metadata["issuer"]
+                else:
+                    # Setup default metadata url
+                    client.access_token_url = data.get("access_token_url", client.access_token_url)
+                    client.authorize_url = data.get("authorize_url", client.authorize_url)
+                    client.api_base_url = data.get("api_base_url", client.api_base_url)
+                    client.server_metadata_url = client.api_base_url + "/.well-known/openid-configuration"
+
+                db.session.commit()
+                db.session.flush()
+                client.register(oauth)
+                return {"success": True, "data": client.json()}
+            except:
+                return {"success": False}
+        elif request.method == "DELETE":
+            try:
+                if client:
+                    client.disconnect(oauth)
+                    db.session.delete(client)
+                    db.session.commit()
+                    db.session.flush()
+                    return {"success": True}
+                else:
+                    return {"success": False}
+            except:
+                return {"success": False}
+        else:
+            return {"success": False}
+
     return plugin_bp
