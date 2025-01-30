@@ -393,8 +393,8 @@ def load_bp(oauth):
                 client.register(oauth)
 
                 return {"success": True, "data": client.json()}
-            except:
-                return {"success": False}
+            except Exception as e:
+                return {"success": False, "errors": [str(e)]}
 
 
     @plugin_bp.route("/api/v1/sso/<int:client_id>", methods = ['GET', 'PATCH', 'DELETE'])
@@ -436,8 +436,8 @@ def load_bp(oauth):
                 db.session.flush()
                 client.register(oauth)
                 return {"success": True, "data": client.json()}
-            except:
-                return {"success": False}
+            except Exception as e:
+                return {"success": False, "errors": [str(e)]}
         elif request.method == "DELETE":
             try:
                 if client:
@@ -448,8 +448,8 @@ def load_bp(oauth):
                     return {"success": True}
                 else:
                     return {"success": False}
-            except:
-                return {"success": False}
+            except Exception as e:
+                return {"success": False, "errors": [str(e)]}
         else:
             return {"success": False}
 
