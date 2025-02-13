@@ -421,7 +421,7 @@ def load_bp(oauth):
                     client.client_id = data["enabled"]
                 if "server_metadata_url" in data:
                     client.server_metadata_url = data["server_metadata_url"]
-                    client.metadata = requests.get(server_metadata_url).json()
+                    metadata = requests.get(server_metadata_url).json()
                     client.access_token_url = metadata["token_endpoint"]
                     client.authorize_url = metadata["authorization_endpoint"]
                     client.api_base_url = metadata["issuer"]
