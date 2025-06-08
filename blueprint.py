@@ -231,7 +231,7 @@ def load_bp(oauth):
         except:
             api_data = []
         try:
-            userinfo = client.parse_id_token(token)
+            userinfo = token["userinfo"]
         except:
             userinfo = []
 
