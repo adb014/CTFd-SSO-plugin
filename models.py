@@ -27,7 +27,7 @@ class OAuthClients(db.Model):
 
     def register(self, oauth):
         if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
-          scope = 'profile openid  roles'
+          scope = 'profile openid roles'
         else:
           scope = 'profile openid email'
 
