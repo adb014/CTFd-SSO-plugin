@@ -347,14 +347,16 @@ def load_bp(oauth):
     @admins_only
     def sso_oauth_tokens():
         if request.method == 'GET':
-            clients = OAuthClients.query.all()
-            data = []
-            for client in clients:
-               data.append(client.json())
-            if data:
+            try:
+                clients = OAuthClients.query.all()
+                data = []
+                for client in clients:
+                   data.append(client.json())
+
                 return {"success": True, "data": data}
-            else:
-                return {"success": False}
+
+            except Exception as e:
+                return {"success": False, "errors": [str(e)]}
         else:
             try:
                 data = request.form or request.get_json()
