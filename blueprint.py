@@ -318,7 +318,7 @@ def load_bp(oauth):
         else:
             user_roles = None;
 
-        user = Users.query.filter_by(email=user_email).first()
+        user = Users.query.filter(Users.email.ilike(user_email)).first()
         if user is None:
             # Check if we are allowing registration before creating users
             if registration_visible():
