@@ -5,8 +5,10 @@ import os
 import re
 
 from authlib.integrations.flask_client import OAuth
+from sqlalchemy import inspect, text
 
 from CTFd.config import process_boolean_str
+from CTFd.models import db
 from CTFd.plugins import override_template
 from CTFd.utils import get_app_config
 
@@ -15,6 +17,22 @@ from .models import OAuthClients
 
 PLUGIN_PATH = os.path.dirname(__file__)
 CONFIG = json.load(open("{}/config.json".format(PLUGIN_PATH)))
+
+
+def migrate_db():
+    """Apply incremental schema changes to oauth_clients that create_all() won't add."""
+    inspector = inspect(db.engine)
+    if 'oauth_clients' not in inspector.get_table_names():
+        return  # Table doesn't exist yet; create_all() will build it fresh.
+    existing = {col['name'] for col in inspector.get_columns('oauth_clients')}
+    migrations = [
+        ('server_metadata_url', 'TEXT'),
+        ('enabled', 'BOOLEAN NOT NULL DEFAULT TRUE'),
+    ]
+    with db.engine.begin() as conn:
+        for col_name, col_type in migrations:
+            if col_name not in existing:
+                conn.execute(text(f'ALTER TABLE oauth_clients ADD COLUMN {col_name} {col_type}'))
 
 
 def oauth_clients():
@@ -117,6 +135,9 @@ def numactive(clients):
 def load(app):
     # Create database tables
     app.db.create_all()
+
+    # Apply column-level migrations for existing tables
+    migrate_db()
 
     # Get all saved clients and register them
     clients = oauth_clients()

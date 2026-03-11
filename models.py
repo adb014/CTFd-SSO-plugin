@@ -27,7 +27,7 @@ class OAuthClients(db.Model):
 
     def register(self, oauth):
         if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
-          scope = 'profile openid roles'
+          scope = 'profile openid email roles'
         else:
           scope = 'profile openid email'
 
@@ -48,10 +48,9 @@ class OAuthClients(db.Model):
         oauth._clients[self.id] = None
 
     def json(self):
-        return {'id': self.id, 
+        return {'id': self.id,
                 'name': self.name,
                 'client_id' : self.client_id,
-                'client_secret': self.client_secret,
                 'access_token_url': self.access_token_url,
                 'authorize_url': self.authorize_url,
                 'api_base_url': self.api_base_url,

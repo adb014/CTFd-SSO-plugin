@@ -21,29 +21,29 @@
 					{{ form.name(class="form-control", value=name) }}
 				</div>
 				<div class="form-group">
-					<b>{{ form.client_id.label }}</b>
+					<b>{{ form.client_id.label }} (self-explanatory)</b>
 					{{ form.client_id(class="form-control", value=client_id) }}
 				</div>
 				<div class="form-group">
-					<b>{{ form.client_secret.label }}</b>
+					<b>{{ form.client_secret.label }} (self-explanatory)</b>
 					{{ form.client_secret(class="form-control", value=client_secret) }}
 				</div>
 				<hr color="#999">
 				<div class="form-group">
-					<b>{{ form.access_token_url.label }}</b>
+					<b>{{ form.access_token_url.label }} (Authentik: Token URL)</b>
 					{{ form.access_token_url(class="form-control", value=access_token_url) }}
 				</div>
 				<div class="form-group">
-					<b>{{ form.authorize_url.label }}</b>
+					<b>{{ form.authorize_url.label }} (Authentik: Authorize URL)</b>
 					{{ form.authorize_url(class="form-control", value=authorize_url) }}
 				</div>
 				<div class="form-group">
-					<b>{{ form.api_base_url.label }}</b>
+					<b>{{ form.api_base_url.label }} (Authentik: OpenID Configuration Issuer)</b>
 					{{ form.api_base_url(class="form-control", value=api_base_url) }}
 				</div>
 				<hr class="hr-text" data-content="Or">
 				<div class="form-group">
-					<b>{{ form.server_metadata_url.label }}</b>
+					<b>{{ form.server_metadata_url.label }} (Authentik: OpenID Configuration URL)</b>
 					{{ form.server_metadata_url(class="form-control", value=server_metadata_url) }}
 				</div>
         <hr color="#999">

@@ -17,10 +17,67 @@ from CTFd.utils.security.auth import login_user, logout_user
 
 from .models import OAuthClients
 
+import ipaddress
 import json
+import socket
 import sys
 import time
 import requests
+from urllib.parse import urlparse
+
+# ---------------------------------------------------------------------------
+# SSRF prevention — networks that admin-supplied metadata URLs must not reach
+# ---------------------------------------------------------------------------
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("100.64.0.0/10"),   # RFC 6598 Shared Address Space (Alibaba Cloud IMDS)
+]
+
+
+def _validate_metadata_url(url):
+    """Validate that a server_metadata_url is safe to fetch.
+
+    Raises ValueError for any URL that could be used as an SSRF vector:
+    - non-HTTPS scheme
+    - unresolvable hostname
+    - private, loopback, link-local, reserved, or cloud-metadata IP ranges
+      (covers AWS/GCP/Azure IMDSv1 at 169.254.169.254 via is_link_local,
+       RFC 1918 ranges via is_private, and Alibaba Cloud 100.100.100.200
+       via the explicit _BLOCKED_NETWORKS list)
+    """
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError("server_metadata_url must use the https scheme")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("server_metadata_url has no hostname")
+
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as exc:
+        raise ValueError(
+            f"Cannot resolve server_metadata_url hostname '{hostname}': {exc}"
+        ) from exc
+
+    for addr_info in addr_infos:
+        ip = ipaddress.ip_address(addr_info[4][0])
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise ValueError(
+                f"server_metadata_url resolves to a disallowed address: {ip}"
+            )
+        for net in _BLOCKED_NETWORKS:
+            if ip in net:
+                raise ValueError(
+                    f"server_metadata_url resolves to a disallowed address: {ip}"
+                )
+
 
 plugin_bp = Blueprint('sso', __name__, template_folder='templates', static_folder='static', static_url_path='/static/sso')
 
@@ -67,14 +124,15 @@ def load_bp(oauth):
                 raise ValueError("SSO logout - missing refresh_token")
             refresh_token = token["refresh_token"]
 
-            if "sso_client_id" not in session:
-                client_id = session("sso_client_id")
+            if "sso_client_id" in session:
+                client_id = session["sso_client_id"]
                 client = OAuthClients.query.filter_by(id=client_id).first()
             else:
                 client = OAuthClients.query.filter_by(id=1).first()
 
             access_token_url = client.access_token_url
             if not access_token_url:
+                _validate_metadata_url(client.server_metadata_url)
                 metadata = requests.get(client.server_metadata_url).json()
                 access_token_url = metadata["token_endpoint"]
 
@@ -131,6 +189,7 @@ def load_bp(oauth):
             if request.form["server_metadata_url"]:
                 # Get the other URL from the server metadata site
                 client.server_metadata_url = request.form["server_metadata_url"]
+                _validate_metadata_url(client.server_metadata_url)
                 metadata = requests.get(client.server_metadata_url).json()
                 client.access_token_url = metadata["token_endpoint"]
                 client.authorize_url = metadata["authorization_endpoint"]
@@ -175,6 +234,7 @@ def load_bp(oauth):
 
             if request.form["server_metadata_url"]:
                 server_metadata_url = request.form["server_metadata_url"]
+                _validate_metadata_url(server_metadata_url)
                 metadata = requests.get(server_metadata_url).json()
                 access_token_url = metadata["token_endpoint"]
                 authorize_url = metadata["authorization_endpoint"]
@@ -258,7 +318,7 @@ def load_bp(oauth):
         else:
             user_roles = None;
 
-        user = Users.query.filter_by(name=user_name).first()
+        user = Users.query.filter_by(email=user_email).first()
         if user is None:
             # Check if we are allowing registration before creating users
             if registration_visible():
@@ -369,6 +429,7 @@ def load_bp(oauth):
                 enabled = data.get("enabled", True)
                 if "server_metadata_url" in data:
                     server_metadata_url = data["server_metadata_url"]
+                    _validate_metadata_url(server_metadata_url)
                     metadata = requests.get(server_metadata_url).json()
                     access_token_url = metadata["token_endpoint"]
                     authorize_url = metadata["authorization_endpoint"]
@@ -422,9 +483,10 @@ def load_bp(oauth):
                 if "color" in data:
                     client.color = data["color"]
                 if "enabled" in data:
-                    client.client_id = data["enabled"]
+                    client.enabled = data["enabled"]
                 if "server_metadata_url" in data:
                     client.server_metadata_url = data["server_metadata_url"]
+                    _validate_metadata_url(client.server_metadata_url)
                     metadata = requests.get(client.server_metadata_url).json()
                     client.access_token_url = metadata["token_endpoint"]
                     client.authorize_url = metadata["authorization_endpoint"]
