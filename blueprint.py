@@ -360,15 +360,15 @@ def load_bp(oauth):
         # Has the users mail or username been updated ? Only treat mutable value
         if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)):
             if user_email != user.email:
-                user.type = user_role
+                user.email = user_email
                 db.session.commit()
-                user = Users.query.filter(Users.email.ilike(user_email)).first()
+                user = Users.query.filter_by(name=user_name).first()
                 clear_user_session(user_id=user.id)
         else:
             if user_name != user.name:
                 user.name = user_name
                 db.session.commit()
-                user = Users.query.filter_by(name=user_name).first()
+                user = Users.query.filter(Users.email.ilike(user_email)).first()
                 clear_user_session(user_id=user.id)
 
         if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
