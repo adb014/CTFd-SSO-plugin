@@ -318,7 +318,20 @@ def load_bp(oauth):
         else:
             user_roles = None;
 
-        user = Users.query.filter(Users.email.ilike(user_email)).first()
+        # For the vulnerability "CWE-290 — Authentication Bypass by Spoofing"
+        # we need an immutable value returned by the IdP. In most cases this
+        # will be the email address as the preferred_username can be modified
+        # on IdP's such as google. An exception is Keycloak backed by ldap used
+        # as an IdP. In that case we can and should enforce that username is
+        # immutable as changing it might cause issues with other things that
+        # use the ldap.
+        #
+        # So use the mail by default, but allow it to be overridden by the configuration
+        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME")) then:
+            user = Users.query.filter_by(name=user_name).first()
+        else:
+            user = Users.query.filter(Users.email.ilike(user_email)).first()
+
         if user is None:
             # Check if we are allowing registration before creating users
             if registration_visible():
