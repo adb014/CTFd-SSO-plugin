@@ -327,7 +327,7 @@ def load_bp(oauth):
         # use the ldap.
         #
         # So use the mail by default, but allow it to be overridden by the configuration
-        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)) then:
+        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)):
             user = Users.query.filter_by(name=user_name).first()
         else:
             user = Users.query.filter(Users.email.ilike(user_email)).first()
@@ -358,7 +358,7 @@ def load_bp(oauth):
         db.session.commit()
 
         # Has the users mail or username been updated ? Only treat mutable value
-        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)) then:
+        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)):
             if user_email != user.email:
                 user.type = user_role
                 db.session.commit()
@@ -397,7 +397,7 @@ def load_bp(oauth):
             if user_role != user.type:
                 user.type = user_role
                 db.session.commit()
-                if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)) then:
+                if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)):
                     user = Users.query.filter_by(name=user_name).first()
                 else:
                     user = Users.query.filter(Users.email.ilike(user_email)).first()
