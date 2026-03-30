@@ -357,6 +357,20 @@ def load_bp(oauth):
         user.verified = True
         db.session.commit()
 
+        # Has the users mail or username been updated ? Only treat mutable value
+        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)) then:
+            if user_email != user.email:
+                user.type = user_role
+                db.session.commit()
+                user = Users.query.filter(Users.email.ilike(user_email)).first()
+                clear_user_session(user_id=user.id)
+        else:
+            if user_name != user.name:
+                user.name = user_name
+                db.session.commit()
+                user = Users.query.filter_by(name=user_name).first()
+                clear_user_session(user_id=user.id)
+
         if process_boolean_str(get_app_config("OAUTH_HAS_ROLES")):
             roles = get_app_config("OAUTH_ALLOWED_ADMIN_ROLES")
             if roles and not user_roles is None and len(user_roles) > 0:
@@ -383,7 +397,10 @@ def load_bp(oauth):
             if user_role != user.type:
                 user.type = user_role
                 db.session.commit()
-                user = Users.query.filter_by(email=user_email).first()
+                if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)) then:
+                    user = Users.query.filter_by(name=user_name).first()
+                else:
+                    user = Users.query.filter(Users.email.ilike(user_email)).first()
                 clear_user_session(user_id=user.id)
 
         login_user(user)
