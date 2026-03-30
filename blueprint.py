@@ -327,7 +327,7 @@ def load_bp(oauth):
         # use the ldap.
         #
         # So use the mail by default, but allow it to be overridden by the configuration
-        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME")) then:
+        if process_boolean_str(get_app_config("OAUTH_VALIDATE_WITH_USERNAME", False)) then:
             user = Users.query.filter_by(name=user_name).first()
         else:
             user = Users.query.filter(Users.email.ilike(user_email)).first()
