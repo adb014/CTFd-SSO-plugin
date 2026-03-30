@@ -96,7 +96,11 @@ def update_settings_template(app):
     """
     Gets the actual settings template and disabled the
     name and email fields as treated by our IDP. If
-    OAUTH_NO_LOCAL_USERS is set, disbale password as well
+    OAUTH_NO_LOCAL_USERS is set, disable password as well.
+
+    Yes the user can bypass this, but if they do the impact
+    is that they might loose access to CTFd.. Their problem,
+    not ours.
     """
 
     environment = app.jinja_environment
