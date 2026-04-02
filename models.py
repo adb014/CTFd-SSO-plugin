@@ -18,6 +18,9 @@ class OAuthClients(db.Model):
     api_base_url = db.Column(db.Text)
     server_metadata_url = db.Column(db.Text)
 
+    # Do we use S256 PKCE challenges
+    pkce_s256 = db.Column(db.Boolean, default=False)
+
     # In a later update you will be able to customize the login button 
     color = db.Column(db.Text)
     icon = db.Column(db.Text)
@@ -57,4 +60,5 @@ class OAuthClients(db.Model):
                 'server_metadata_url': self.server_metadata_url,
                 'color': self.color,
                 'icon': self.icon,
+                'pkce_s256': self.pkce_s256,
                 'enabled': self.enabled}

@@ -91,6 +91,7 @@ class OAuthForm(BaseForm):
     api_base_url = StringField("Realm url", validators=[Optional()])
     server_metadata_url = StringField("Server metadata url", validators=[Optional()])
     color = StringField("Button Color", validators=[InputRequired()])
+    pkce_s256 = BooleanField("Use PKCE S256 challenge")
     enabled = BooleanField("Enabled")
     submit = SubmitField("Add")
 
@@ -185,6 +186,7 @@ def load_bp(oauth):
             client.client_id = request.form["client_id"]
             client.client_secret = request.form["client_secret"]
             client.color = request.form["color"]
+            client.pkce_s256 = ("pkce_s256" in request.form and request.form["pkce_s256"] == "y")
             client.enabled = ("enabled" in request.form and request.form["enabled"] == "y")
             if request.form["server_metadata_url"]:
                 # Get the other URL from the server metadata site
@@ -216,6 +218,7 @@ def load_bp(oauth):
           form.api_base_url.data = client.api_base_url
           form.server_metadata_url.data = client.server_metadata_url
           form.color.data = client.color
+          form.pkce_s256.data = client.pkce_s256
           form.enabled.data = client.enabled
           form.submit.label.text = "Update"
 
@@ -230,6 +233,7 @@ def load_bp(oauth):
             client_id = request.form["client_id"]
             client_secret = request.form["client_secret"]
             color = request.form["color"]
+            pkce_s256 = ("pkce_s256" in request.form and request.form["pkce_s256"] == "y")
             enabled = ("enabled" in request.form and request.form["enabled"] == "y")
 
             if request.form["server_metadata_url"]:
@@ -255,6 +259,7 @@ def load_bp(oauth):
                 api_base_url=api_base_url,
                 server_metadata_url=server_metadata_url,
                 color=color,
+                pkce_s256=pkce_s256,
                 enabled=enabled
             )
             db.session.add(client)
@@ -268,13 +273,15 @@ def load_bp(oauth):
         form = OAuthForm()
         return render_template('create.html', form=form)
 
-
     @plugin_bp.route("/sso/login/<int:client_id>", methods = ['GET'])
     def sso_oauth(client_id):
-        client = oauth.create_client(client_id)
+        client = OAuthClients.query.filter_by(id=client_id).first()
+        oauth_client = oauth.create_client(client_id)
         redirect_uri=url_for('sso.sso_redirect', client_id=client_id, _external=True, _scheme='https')
-        return client.authorize_redirect(redirect_uri)
-
+        if client.pkce_s256:
+            return oauth_client.authorize_redirect(redirect_uri, code_challenge_method="S256")
+        else:
+            return oauth_client.authorize_redirect(redirect_uri)
 
     @plugin_bp.route("/sso/redirect/<int:client_id>", methods = ['GET'])
     def sso_redirect(client_id):
@@ -456,6 +463,7 @@ def load_bp(oauth):
                 client_id = data.get("client_id", "")
                 client_secret = data.get("client_secret", "")
                 color = data.get("color", "")
+                pkce_s256 = data.get("pkce_s256", False)
                 enabled = data.get("enabled", True)
                 if "server_metadata_url" in data:
                     server_metadata_url = data["server_metadata_url"]
@@ -480,6 +488,7 @@ def load_bp(oauth):
                     api_base_url=api_base_url,
                     server_metadata_url=server_metadata_url,
                     color=color,
+                    pkce_s256=pkce_s256,
                     enabled=enabled
                 )
                 db.session.add(client)
@@ -512,6 +521,8 @@ def load_bp(oauth):
                     client.client_secret = data["client_secret"]
                 if "color" in data:
                     client.color = data["color"]
+                if "pkce_s256" in data:
+                    client.pkce_s256 = data["pkce_s256"]                    
                 if "enabled" in data:
                     client.enabled = data["enabled"]
                 if "server_metadata_url" in data:
