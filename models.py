@@ -38,6 +38,7 @@ class OAuthClients(db.Model):
             name=self.id,
             client_id=self.client_id,
             client_secret=self.client_secret,
+            code_challenge_method="S256" if self.pkce_s256 else None,
             access_token_url=self.access_token_url,
             authorize_url=self.authorize_url,
             api_base_url=self.api_base_url,

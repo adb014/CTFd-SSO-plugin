@@ -62,7 +62,7 @@ def _validate_metadata_url(url):
     for addr_info in addr_infos:
         ip = ipaddress.ip_address(addr_info[4][0])
         if (
-            ip.is_private
+            (not process_boolean_str(get_app_config("OAUTH_ALLOW_PRIVATE_METADATA", False)) and ip.is_private)
             or ip.is_loopback
             or ip.is_link_local
             or ip.is_reserved
@@ -133,9 +133,7 @@ def load_bp(oauth):
 
             access_token_url = client.access_token_url
             if not access_token_url:
-                _validate_metadata_url(client.server_metadata_url)
-                metadata = requests.get(client.server_metadata_url).json()
-                access_token_url = metadata["token_endpoint"]
+                raise ValueError("SSO logout - missing access token url")
 
             data = requests.post(access_token_url, data = {
                     "refresh_token": refresh_token,
@@ -275,13 +273,9 @@ def load_bp(oauth):
 
     @plugin_bp.route("/sso/login/<int:client_id>", methods = ['GET'])
     def sso_oauth(client_id):
-        client = OAuthClients.query.filter_by(id=client_id).first()
         oauth_client = oauth.create_client(client_id)
         redirect_uri=url_for('sso.sso_redirect', client_id=client_id, _external=True, _scheme='https')
-        if client.pkce_s256:
-            return oauth_client.authorize_redirect(redirect_uri, code_challenge_method="S256")
-        else:
-            return oauth_client.authorize_redirect(redirect_uri)
+        return oauth_client.authorize_redirect(redirect_uri)
 
     @plugin_bp.route("/sso/redirect/<int:client_id>", methods = ['GET'])
     def sso_redirect(client_id):

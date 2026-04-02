@@ -17,6 +17,7 @@ Works perfectly with a large variety of identity management solutions, like KeyC
    - `OAUTH_NO_LOCAL_USERS`: set `True` if you only want to allow OAuth logins
    - `OAUTH_SSO_LOGOUT`: set `True` if you wish for a logout from CTFd to force the logout from the OAuth provider. This requires that the provider supplies a `end_session_endpoint` in its server metadata.
    - `OAUTH_VALIDATE_WITH_USERNAME`: By default the email is used to validate that the authenticated user exists. This is because it is generally immutable for most IdPs. In some cases the email might be mutable and the username immutable, in that case to avoid the vulnerability "CWE-290 - Authentication Bypass by Spoofing", this option should be set to `True`.
+   - `OAUTH_ALLOW_PRIVATE_METADATA`: set `True` to allow the OAuth metadata server to be on a private RFC 1918 address. Such an address might be used for an SSRF atrack, but is needed if your real OAuth server uses such an address.
 4. Start or restart CTFd.
 5. In the `Admin Panel` go to `Plugins`>`ctfd-sso`. There you can view and delete existing clients, or add a new one by pressing plus symbol.
 6. Insert a client name (it will be shown on the button) and the other information according to the identity provider. Then press `Add`.
